@@ -118,6 +118,9 @@ class Memory(object):
 env = gym.make('CartPole-v1')
 #env = gym.make('MountainCar-v0')
 
+np.random.seed(1)
+tf.set_random_seed(1)
+
 # network parameters
 n_actions = env.action_space.n
 n_features = env.observation_space.shape[0]
