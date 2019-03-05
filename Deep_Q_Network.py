@@ -25,6 +25,7 @@ class DeepQNetwork:
         self.gamma = gamma
         self.learn_step_counter = 0
         self.replace_target_iter = replace_target_iter
+        self.dropout = 0.2
         
         # inputs 
         self.S = tf.placeholder(tf.float32, [None, self.n_features], name='s')  
@@ -48,10 +49,10 @@ class DeepQNetwork:
         # step 1: compute q'(s',a') >> s' from batch, a' from target_net (amax)
         self.q_target = self.R if self.D is True else self.R + self.gamma * tf.reduce_max(self.q_, axis=1) 
         # step 2: compute q(s,a) >> s from batch, a from batch
-        a_indices = tf.stack([tf.range(batch_size), self.A], axis=1)
-        self.q_pred = tf.gather_nd(params=self.q, indices=a_indices)
-        # step 3: compute td_error >> mse(q_eval, q_target)
-        self.td_error = tf.losses.mean_squared_error(labels=(self.q_target), predictions=self.q_pred)
+        self.a_indices = tf.stack([tf.range(batch_size), self.A], axis=1)
+        self.q_pred = tf.gather_nd(params=self.q, indices=self.a_indices)
+        # step 3: compute td_error & train 
+        self.td_error = tf.losses.mean_squared_error(labels=self.q_target, predictions=self.q_pred)
         self.train = tf.train.AdamOptimizer(self.lr).minimize(self.td_error, var_list=self.e_params) 
         
     def _build_net(self, s, scope, trainable):
@@ -61,9 +62,11 @@ class DeepQNetwork:
             net = tf.layers.dense(s, 24, tf.nn.relu, 
                                   kernel_initializer=init_w, bias_initializer=init_b, 
                                   name='l1', trainable=trainable)
+            net = tf.layers.dropout(net, rate=self.dropout, training=trainable)
             net = tf.layers.dense(net, 24, tf.nn.relu, 
                                   kernel_initializer=init_w, bias_initializer=init_b, 
                                   name='l2', trainable=trainable)
+            net = tf.layers.dropout(net, rate=self.dropout, training=trainable)
             q = tf.layers.dense(net, self.n_actions, 
                                 kernel_initializer=init_w, bias_initializer=init_b, 
                                 name='q', trainable=trainable)
